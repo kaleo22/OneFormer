@@ -14,7 +14,7 @@ from visualizer import ColorMode, Visualizer
 
 
 class VisualizationDemo(object):
-    def __init__(self, cfg, instance_mode=ColorMode.IMAGE, parallel=False):
+    def __init__(self, cfg, instance_mode=Visualizer, parallel=False):
         """
         Args:
             cfg (CfgNode):
@@ -71,8 +71,9 @@ class VisualizationDemo(object):
         if task == 'panoptic' or task == 'instance':
             visualizer = Visualizer(image, metadata=self.metadata, instance_mode=ColorMode.IMAGE_BW)
             predictions = self.predictor(image, task)
-            instances = predictions["instances"].to(self.cpu_device)
-            vis_output['instance_inference'] = visualizer.draw_instance_predictions(predictions=instances, alpha=1)
+            print(predictions)
+            instances = predictions["instances"].to(self.cpu_device) 
+            vis_output['instance_inference'] = visualizer.draw_instance_predictions(predictions=instances, alpha=0.8)
 
         return predictions, vis_output
 

@@ -13,6 +13,9 @@ inference_test_output
 *.jpg
 !/projects/DensePose/doc/images/*.jpg
 *.mp4
+*.csv
+*.log
+*.png
 
 # compilation and distribution
 __pycache__

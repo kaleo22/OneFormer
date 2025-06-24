@@ -1,6 +1,8 @@
 import cv2
 import argparse
 import os
+import glob
+from natsort import natsorted as natsort
 
 args = argparse.ArgumentParser(description="Convert JPEG frames to MP4 video")
 args.add_argument(
@@ -27,9 +29,11 @@ out = cv2.VideoWriter(
     (1440, 1080)  # Assuming 1440x1080 resolution
 )
 
-for file in os.listdir(Input):
+image_files = natsort(glob.glob(os.path.join(Input, "*.jpg")))
+
+for file in image_files:
     if file.endswith(".jpg"):
-        frame = cv2.imread(os.path.join(Input, file), cv2.IMREAD_UNCHANGED)
+        frame = cv2.imread(os.path.join(file), cv2.IMREAD_UNCHANGED)
         if frame is not None:
             out.write(frame)
             print(f"Added {file} to video.")

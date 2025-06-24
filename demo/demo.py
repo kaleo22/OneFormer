@@ -17,9 +17,11 @@ import time
 import cv2
 import numpy as np
 import tqdm
+import pandas as pd
 
 from detectron2.config import get_cfg
 from detectron2.data.detection_utils import read_image
+from detectron2.data import MetadataCatalog
 from detectron2.projects.deeplab import add_deeplab_config
 from detectron2.utils.logger import setup_logger
 
@@ -31,9 +33,12 @@ from oneformer import (
     add_convnext_config,
 )
 from predictor import VisualizationDemo
+from visualizer import _create_text_labels
 
 # constants
 WINDOW_NAME = "OneFormer Demo"
+
+metadata = MetadataCatalog.get("coco_2017_val")
 
 def setup_cfg(args):
     # load config from file and command-line arguments
@@ -104,13 +109,59 @@ if __name__ == "__main__":
 
     demo = VisualizationDemo(cfg)
 
+    rows = []
+    boxes = []
+    frame_count = 1
+
     if args.input:
         for path in tqdm.tqdm(args.input, disable=not args.output):
-            # use PIL, to be consistent with evaluation
-                
+            # use PIL, to be consistent with evaluation    
             img = read_image(path, format="BGR")
             start_time = time.time()
             predictions, visualized_output = demo.run_on_image(img, args.task)
+            #classes = predictions.pred_classes.tolist()
+            #scores = predictions.scores.tolist()
+            #labels = _create_text_labels(classes, scores, self.metadata.get("stuff_classes", None))
+            instances = predictions["instances"]
+            boxes = []
+            if hasattr(instances, "scores"):
+                scores = instances.scores.tolist()
+            else:
+                scores = []
+
+            if hasattr(instances, "pred_masks"):
+                masks = instances.pred_masks.cpu().numpy()
+                for mask in masks:
+                    y_indices, x_indices = np.where(mask)
+                    x_min, x_max = np.min(x_indices), np.max(x_indices)
+                    y_min, y_max = np.min(y_indices), np.max(y_indices)
+                    boxes.append([x_min, y_min, x_max, y_max])
+            else:
+                boxes = []
+            if hasattr(instances, "pred_classes"):
+                pred_classes = instances.pred_classes.tolist()
+                labels = _create_text_labels(
+                    pred_classes, scores, metadata.get("thing_classes", None))
+            else:
+                labels = []
+
+            wanted_labels = {"car", "truck", "motorcycle", "bus"}
+            labels = [l.split()[0] for l in labels]
+            filtered_indices = [i for i, label in enumerate(labels) if label in wanted_labels]
+
+            # Filtere alle Werte entsprechend
+            filtered_labels = [labels[i] for i in filtered_indices]
+            filtered_scores = [scores[i] for i in filtered_indices]
+            filtered_boxes = [boxes[i] for i in filtered_indices]
+
+            
+            rows.append({
+                "frame": frame_count,
+                "labels": filtered_labels,
+                "scores": filtered_scores,
+                "boxes": filtered_boxes
+            })
+            frame_count += 1
             logger.info(
                 "{}: {} in {:.2f}s".format(
                     path,
@@ -136,3 +187,6 @@ if __name__ == "__main__":
                 raise ValueError("Please specify an output path!")
     else:
         raise ValueError("No Input Given")
+    
+    df =pd.DataFrame(rows)
+    df.to_csv("output.csv", index=False)
